@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::usize;
 
+use colored::Colorize;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
@@ -8,6 +10,7 @@ lazy_static! {
     static ref BASE_G_COST: i32 = 10;
     static ref START_INDICATOR: usize = 8;
     static ref END_INDICATOR: usize = 9;
+    static ref MAX_BOARD_SIZE: usize = 13;
 }
 
 fn gen_blockade() -> usize {
@@ -19,10 +22,22 @@ fn gen_blockade() -> usize {
 }
 
 fn gen_range(x: usize) -> usize {
-    thread_rng().gen_range(x..13)
+    thread_rng().gen_range(x..*MAX_BOARD_SIZE)
 }
 
-fn gen_board(height: usize, width: usize) -> Vec<Vec<usize>> {
+fn get_rand_pos(height: usize, width: usize) -> (usize, usize) {
+    (
+        thread_rng().gen_range(0..height),
+        thread_rng().gen_range(0..width),
+    )
+}
+
+fn gen_board(
+    height: usize,
+    width: usize,
+    start: (usize, usize),
+    end: (usize, usize),
+) -> Vec<Vec<usize>> {
     let mut result: Vec<Vec<usize>> = Vec::new();
     for y in 0..height {
         let mut new_vec: Vec<usize> = vec![];
@@ -31,14 +46,36 @@ fn gen_board(height: usize, width: usize) -> Vec<Vec<usize>> {
         }
         result.push(new_vec);
     }
-    result[0][0] = *START_INDICATOR; // start indicator
-    result[height - 1][width - 1] = *END_INDICATOR; // end indicator
+    result[start.0][start.1] = *START_INDICATOR; // start indicator
+    result[end.0][end.1] = *END_INDICATOR; // end indicator
     return result;
 }
 
 fn draw_board(board: Vec<Vec<usize>>) -> () {
-    for x in &board {
-        println!("{:?}", x);
+    print!("     ");
+    for y in 0..board.clone()[0].len() {
+        print!("{} ", y);
+    }
+    println!("");
+    for (i, x) in board.clone().iter().enumerate() {
+        if i < 10 {
+            print!("{}  [ ", i);
+        } else {
+            print!("{} [ ", i);
+        }
+        for y in x.clone() {
+            if y == 9 {
+                print!("{} ", format!("{}", y).bold().red());
+            } else if y == 8 {
+                print!("{} ", format!("{}", y).bold().green());
+            } else if y == 5 {
+                print!("{} ", format!("{}", y).bold().yellow());
+            } else {
+                print!("{} ", y);
+            }
+        }
+        print!("]");
+        println!("");
     }
 }
 
@@ -46,22 +83,28 @@ fn draw_board(board: Vec<Vec<usize>>) -> () {
 struct AStar {
     start: Node,
     end: Node,
-    board: Vec<Vec<usize>>,
+    board: RefCell<Vec<Vec<usize>>>,
     solved_path: Vec<usize>,
 }
 
 impl Default for AStar {
     fn default() -> Self {
-        let height = gen_range(6);
-        let width = gen_range(8);
+        let height = gen_range(6); // board height
+        let width = gen_range(8); // board width
+        let start = get_rand_pos(height, width); // start position tuple
+        let end = get_rand_pos(height, width); // end position tuple
+        println!(
+            "height: {} width: {} start: {:?} end: {:?}",
+            height, width, start, end
+        );
         Self {
-            board: gen_board(height, width),
+            board: RefCell::new(gen_board(height, width, start, end)),
             solved_path: Vec::new(),
-            start: Node { x: 0, y: 0 },
-            end: Node {
-                x: height - 1,
-                y: width - 1,
+            start: Node {
+                x: start.0,
+                y: start.1,
             },
+            end: Node { x: end.0, y: end.1 },
         }
     }
 }
@@ -73,15 +116,22 @@ struct Node {
 }
 
 impl Node {
-    pub fn get_f_cost(self, node: Node) {
-        let up_down_diff = node.x as i32 - self.x as i32;
-        let left_right_diff = node.y as i32 - self.y as i32;
-        let diff_calc = left_right_diff - up_down_diff;
-        let result = ((up_down_diff * *BASE_G_COST) as f32 * *DIAG_BONUS)
-            + (diff_calc * *BASE_G_COST) as f32;
-        println!("{}", result);
+    pub fn get_h_cost(self, node: Node) {
+        let mut cost: i32 = 0;
+        let up_down_diff = (node.x as i32 - self.x as i32).abs();
+        if node.y != self.y {
+            let left_right_diff = (node.y as i32 - self.y as i32).abs();
+            cost = cost
+                + (((up_down_diff * *BASE_G_COST) as f32 * *DIAG_BONUS)
+                    + (left_right_diff * *BASE_G_COST) as f32) as i32;
+            println!("u: {}", up_down_diff);
+            println!("l: {}", left_right_diff);
+        } else {
+            cost = cost + (up_down_diff * *BASE_G_COST)
+        }
+        println!("h cost: {}", cost);
     }
-    pub fn get_h_cost(self, board: Vec<Vec<usize>>) {
+    pub fn get_g_cost(self, board: Vec<Vec<usize>>) {
         unimplemented!();
     }
     pub fn get_cost(self, board: Vec<Vec<usize>>) {
@@ -91,7 +141,18 @@ impl Node {
 
 impl AStar {
     pub fn solve(self) -> () {
-        unimplemented!();
+        let mut board = self.board.clone().into_inner();
+        let height = board.clone().len();
+        let width = board[0].clone().len();
+        let mut pos = get_rand_pos(height, width);
+        while (pos == (self.end.x, self.end.y)) {
+            pos = get_rand_pos(height, width);
+        }
+        println!("rand pos = {:?}", pos);
+        let node = Node { x: pos.0, y: pos.1 };
+        board[node.x][node.y] = 5;
+        node.get_h_cost(self.end);
+        draw_board(board.clone());
     }
 
     pub fn gen_surrounding() {
@@ -101,13 +162,5 @@ impl AStar {
 
 fn main() {
     let a_star = AStar::default();
-    let test_node = Node {
-        x: a_star.end.x - 2,
-        y: a_star.end.y - 5,
-    };
-    let mut board_clone = a_star.board.clone();
-    board_clone[test_node.x][test_node.y] = 99;
-    draw_board(board_clone);
-    test_node.get_f_cost(a_star.end.clone());
     a_star.solve();
 }
