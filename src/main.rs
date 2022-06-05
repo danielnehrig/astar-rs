@@ -1,3 +1,5 @@
+use std::usize;
+
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
@@ -20,7 +22,7 @@ fn gen_range(x: usize) -> usize {
     thread_rng().gen_range(x..13)
 }
 
-fn gen_board(width: usize, height: usize) -> Vec<Vec<usize>> {
+fn gen_board(height: usize, width: usize) -> Vec<Vec<usize>> {
     let mut result: Vec<Vec<usize>> = Vec::new();
     for y in 0..height {
         let mut new_vec: Vec<usize> = vec![];
@@ -42,20 +44,70 @@ fn draw_board(board: Vec<Vec<usize>>) -> () {
 
 #[derive(Debug)]
 struct AStar {
+    start: Node,
+    end: Node,
     board: Vec<Vec<usize>>,
     solved_path: Vec<usize>,
 }
 
 impl Default for AStar {
     fn default() -> Self {
+        let height = gen_range(6);
+        let width = gen_range(8);
         Self {
-            board: gen_board(gen_range(5), gen_range(7)),
+            board: gen_board(height, width),
             solved_path: Vec::new(),
+            start: Node { x: 0, y: 0 },
+            end: Node {
+                x: height - 1,
+                y: width - 1,
+            },
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Node {
+    x: usize,
+    y: usize,
+}
+
+impl Node {
+    pub fn get_f_cost(self, node: Node) {
+        let up_down_diff = node.x as i32 - self.x as i32;
+        let left_right_diff = node.y as i32 - self.y as i32;
+        let diff_calc = left_right_diff - up_down_diff;
+        let result = ((up_down_diff * *BASE_G_COST) as f32 * *DIAG_BONUS)
+            + (diff_calc * *BASE_G_COST) as f32;
+        println!("{}", result);
+    }
+    pub fn get_h_cost(self, board: Vec<Vec<usize>>) {
+        unimplemented!();
+    }
+    pub fn get_cost(self, board: Vec<Vec<usize>>) {
+        unimplemented!();
+    }
+}
+
+impl AStar {
+    pub fn solve(self) -> () {
+        unimplemented!();
+    }
+
+    pub fn gen_surrounding() {
+        unimplemented!();
     }
 }
 
 fn main() {
     let a_star = AStar::default();
-    draw_board(a_star.board.clone());
+    let test_node = Node {
+        x: a_star.end.x - 2,
+        y: a_star.end.y - 5,
+    };
+    let mut board_clone = a_star.board.clone();
+    board_clone[test_node.x][test_node.y] = 99;
+    draw_board(board_clone);
+    test_node.get_f_cost(a_star.end.clone());
+    a_star.solve();
 }
