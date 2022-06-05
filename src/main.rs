@@ -1,7 +1,19 @@
+use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
+lazy_static! {
+    static ref DIAG_BONUS: f32 = 1.4;
+    static ref BASE_G_COST: i32 = 10;
+    static ref START_INDICATOR: usize = 8;
+    static ref END_INDICATOR: usize = 9;
+}
+
 fn get_random_num() -> usize {
-    return thread_rng().gen_range(0..2);
+    if thread_rng().gen_ratio(1, 7) {
+        1
+    } else {
+        0
+    }
 }
 
 fn gen_board(width: usize, height: usize) -> Vec<Vec<usize>> {
@@ -13,11 +25,18 @@ fn gen_board(width: usize, height: usize) -> Vec<Vec<usize>> {
         }
         result.push(new_vec);
     }
+    result[0][0] = *START_INDICATOR; // start indicator
+    result[height - 1][width - 1] = *END_INDICATOR; // end indicator
     return result;
+}
+
+fn draw_board(board: Vec<Vec<usize>>) -> () {
+    for x in &board {
+        println!("{:?}", x);
+    }
 }
 
 fn main() {
     let board = gen_board(5, 10);
-    println!("{:?}", board);
-    println!("Hello, world!");
+    draw_board(board.clone());
 }
