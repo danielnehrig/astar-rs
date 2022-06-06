@@ -1,8 +1,7 @@
-use crate::astar::*;
-
 #[cfg(test)]
 mod tests {
     use crate::astar::Node;
+    use crate::astar::*;
 
     #[test]
     ///    0 1 2 3 4 5 6
@@ -40,8 +39,7 @@ mod tests {
         assert!(h == 10);
     }
 
-    /// should be 10 here because the node x is directly
-    /// behind the end node
+    /// should be 30
     /// ... 5 6 7 8
     /// .
     /// 5   e
@@ -56,8 +54,7 @@ mod tests {
         assert!(h == 30);
     }
 
-    /// should be 10 here because the node x is directly
-    /// behind the end node
+    /// should be 34
     /// ... 5 6 7 8
     /// .
     /// 5   e

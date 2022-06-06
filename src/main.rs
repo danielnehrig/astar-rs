@@ -1,4 +1,5 @@
 mod astar;
+#[cfg(test)]
 mod test;
 use astar::AStar;
 
