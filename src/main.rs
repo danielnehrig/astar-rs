@@ -6,18 +6,28 @@ use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
 lazy_static! {
+    /// the bondues for a diag node
     static ref DIAG_BONUS: f32 = 1.4;
+    /// base g cost
     static ref BASE_G_COST: i32 = 10;
+    /// indicator for start position
     static ref START_INDICATOR: usize = 8;
+    /// indicator for end position
     static ref END_INDICATOR: usize = 9;
+    /// the max board size
     static ref MAX_BOARD_SIZE: usize = 13;
+    /// the blocked node value
+    static ref BLOCKED_NODE: usize = 1;
+    /// the free node value
+    static ref FREE_NODE: usize = 0;
 }
 
+/// random generation of blocked nodes
 fn gen_blockade() -> usize {
     if thread_rng().gen_ratio(1, 7) {
-        1
+        *BLOCKED_NODE
     } else {
-        0
+        *FREE_NODE
     }
 }
 
@@ -25,6 +35,8 @@ fn gen_range(x: usize) -> usize {
     thread_rng().gen_range(x..*MAX_BOARD_SIZE)
 }
 
+/// get a random position on the board
+/// used to create start and end points
 fn get_rand_pos(height: usize, width: usize) -> (usize, usize) {
     (
         thread_rng().gen_range(0..height),
@@ -32,6 +44,7 @@ fn get_rand_pos(height: usize, width: usize) -> (usize, usize) {
     )
 }
 
+/// generate a 2d board
 fn gen_board(
     height: usize,
     width: usize,
@@ -51,6 +64,7 @@ fn gen_board(
     return result;
 }
 
+/// draw the board in stdout
 fn draw_board(board: Vec<Vec<usize>>) -> () {
     print!("     ");
     for y in 0..board.clone()[0].len() {
@@ -64,10 +78,13 @@ fn draw_board(board: Vec<Vec<usize>>) -> () {
             print!("{} [ ", i);
         }
         for y in x.clone() {
+            // draw end in red
             if y == 9 {
                 print!("{} ", format!("{}", y).bold().red());
+            // draw start in green
             } else if y == 8 {
                 print!("{} ", format!("{}", y).bold().green());
+            // debug output yellow :)
             } else if y == 5 {
                 print!("{} ", format!("{}", y).bold().yellow());
             } else {
@@ -81,10 +98,16 @@ fn draw_board(board: Vec<Vec<usize>>) -> () {
 
 #[derive(Debug)]
 struct AStar {
+    /// the start node
     start: Node,
+    /// the end node
     end: Node,
+    /// the game board
     board: RefCell<Vec<Vec<usize>>>,
+    /// the list of the solved path
     solved_path: Vec<usize>,
+    /// the current neighbours
+    neighbours_list: Vec<Node>,
 }
 
 impl Default for AStar {
@@ -96,7 +119,7 @@ impl Default for AStar {
         println!(
             "height: {} width: {} start: {:?} end: {:?}",
             height, width, start, end
-        );
+        ); // random gen numbers for debug
         Self {
             board: RefCell::new(gen_board(height, width, start, end)),
             solved_path: Vec::new(),
@@ -105,17 +128,22 @@ impl Default for AStar {
                 y: start.1,
             },
             end: Node { x: end.0, y: end.1 },
+            neighbours_list: Vec::new(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 struct Node {
+    /// x,height, column
     x: usize,
+    /// y, width, row
     y: usize,
 }
 
+// A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
+    /// get the cost from the end node to node x
     pub fn get_h_cost(self, node: Node) {
         let mut cost: i32 = 0;
         let up_down_diff = (node.x as i32 - self.x as i32).abs();
@@ -131,21 +159,24 @@ impl Node {
         }
         println!("h cost: {}", cost);
     }
+    /// get the cost from start to node x
     pub fn get_g_cost(self, board: Vec<Vec<usize>>) {
         unimplemented!();
     }
-    pub fn get_cost(self, board: Vec<Vec<usize>>) {
+    /// get the f cost g + h cost
+    pub fn get_f_cost(self, board: Vec<Vec<usize>>) {
         unimplemented!();
     }
 }
 
 impl AStar {
+    /// solve the board
     pub fn solve(self) -> () {
         let mut board = self.board.clone().into_inner();
         let height = board.clone().len();
         let width = board[0].clone().len();
         let mut pos = get_rand_pos(height, width);
-        while (pos == (self.end.x, self.end.y)) {
+        while pos == (self.end.x, self.end.y) {
             pos = get_rand_pos(height, width);
         }
         println!("rand pos = {:?}", pos);
