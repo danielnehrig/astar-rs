@@ -22,6 +22,16 @@ mod tests {
         let h = x.get_h_cost(end_node);
         assert!(h == 14);
     }
+
+    /// should be 10 here because the node x is directly
+    /// behind the end node
+    /// ... 5 6
+    /// .
+    /// 5   e
+    /// 6   x
+    /// like this
+    /// the dots represent 0 - 4 like in the first test
+    /// for simplicity sake we'll shorten them for following tests
     #[test]
     fn h_cost_2() {
         let end_node = Node { x: 5, y: 5 };
@@ -29,6 +39,15 @@ mod tests {
         let h = x.get_h_cost(end_node);
         assert!(h == 10);
     }
+
+    /// should be 10 here because the node x is directly
+    /// behind the end node
+    /// ... 5 6 7 8
+    /// .
+    /// 5   e
+    /// 6
+    /// 7
+    /// 8   x
     #[test]
     fn h_cost_3() {
         let end_node = Node { x: 5, y: 5 };
@@ -36,6 +55,15 @@ mod tests {
         let h = x.get_h_cost(end_node);
         assert!(h == 30);
     }
+
+    /// should be 10 here because the node x is directly
+    /// behind the end node
+    /// ... 5 6 7 8
+    /// .
+    /// 5   e
+    /// 6
+    /// 7
+    /// 8     x
     #[test]
     fn h_cost_4() {
         let end_node = Node { x: 5, y: 5 };
