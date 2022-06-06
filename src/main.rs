@@ -219,10 +219,14 @@ impl AStar {
         }
 
         let node = Node { x: pos.0, y: pos.1 };
-        node.get_h_cost(self.end.clone());
+        let h_cost = node.clone().get_h_cost(self.end.clone());
+        let g_cost = node.clone().get_g_cost(self.start.clone());
+        let f_cost = node
+            .clone()
+            .get_f_cost(self.start.clone(), self.end.clone());
         self.gen_surrounding();
         draw_board(board.clone(), vec![(pos.0, pos.1)]);
-        println!("{:?}", self.neighbours_list.borrow());
+        println!("h {}, g {}, f {}", h_cost, g_cost, f_cost);
     }
 
     pub fn gen_surrounding(&mut self) {
