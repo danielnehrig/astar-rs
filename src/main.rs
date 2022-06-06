@@ -144,28 +144,58 @@ struct Node {
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
     /// get the cost from the end node to node x
-    pub fn get_h_cost(self, node: Node) {
+    pub fn get_h_cost(self, node: Node) -> i32 {
+        // manhatten metrik
+        // let mut cost: i32 = 0;
+        // let up_down_diff = (node.x as i32 - self.x as i32).abs();
+        // let left_right_diff = (node.y as i32 - self.y as i32).abs();
+        // let sum_of_moves = (up_down_diff + left_right_diff).abs();
+        // cost = sum_of_moves * *BASE_G_COST;
+
+        // diag faster
         let mut cost: i32 = 0;
-        let up_down_diff = (node.x as i32 - self.x as i32).abs();
-        if node.y != self.y {
-            let left_right_diff = (node.y as i32 - self.y as i32).abs();
-            cost = cost
-                + (((up_down_diff * *BASE_G_COST) as f32 * *DIAG_BONUS)
-                    + (left_right_diff * *BASE_G_COST) as f32) as i32;
-            println!("u: {}", up_down_diff);
-            println!("l: {}", left_right_diff);
-        } else {
-            cost = cost + (up_down_diff * *BASE_G_COST)
+        let ud = (node.x as i32 - self.x as i32).abs();
+        let lr = (node.y as i32 - self.y as i32).abs();
+        let mut sum_of_moves = (ud + lr).abs();
+        if lr < ud {
+            for x in 0..lr {
+                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves = sum_of_moves - 2;
+            }
         }
-        println!("h cost: {}", cost);
+        if lr > ud {
+            for x in 0..ud {
+                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves = sum_of_moves - 2;
+            }
+        }
+        cost = cost + (sum_of_moves * *BASE_G_COST);
+        return cost;
     }
     /// get the cost from start to node x
-    pub fn get_g_cost(self, board: Vec<Vec<usize>>) {
-        unimplemented!();
+    pub fn get_g_cost(self, node: Node) -> i32 {
+        let mut cost: i32 = 0;
+        let ud = (node.x as i32 - self.x as i32).abs();
+        let lr = (node.y as i32 - self.y as i32).abs();
+        let mut sum_of_moves = (ud + lr).abs();
+        if lr < ud {
+            for x in 0..lr {
+                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves = sum_of_moves - 2;
+            }
+        }
+        if lr > ud {
+            for x in 0..ud {
+                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves = sum_of_moves - 2;
+            }
+        }
+        cost = cost + (sum_of_moves * *BASE_G_COST);
+        return cost;
     }
     /// get the f cost g + h cost
-    pub fn get_f_cost(self, board: Vec<Vec<usize>>) {
-        unimplemented!();
+    pub fn get_f_cost(&self, start: Node, end: Node) -> i32 {
+        return self.clone().get_g_cost(start) + self.clone().get_h_cost(end);
     }
 }
 
@@ -176,7 +206,9 @@ impl AStar {
         let height = board.clone().len();
         let width = board[0].clone().len();
         let mut pos = get_rand_pos(height, width);
-        while pos == (self.end.x, self.end.y) {
+        // debug
+        while pos == (self.end.x, self.end.y) || pos == (self.start.x, self.start.y) {
+            println!("redo");
             pos = get_rand_pos(height, width);
         }
         println!("rand pos = {:?}", pos);
