@@ -65,7 +65,7 @@ fn gen_board(
 }
 
 /// draw the board in stdout
-fn draw_board(board: Vec<Vec<usize>>) -> () {
+fn draw_board(board: Vec<Vec<usize>>, selected: Vec<(usize, usize)>) -> () {
     print!("     ");
     for y in 0..board.clone()[0].len() {
         print!("{} ", y);
@@ -77,15 +77,21 @@ fn draw_board(board: Vec<Vec<usize>>) -> () {
         } else {
             print!("{} [ ", i);
         }
-        for y in x.clone() {
+        for (j, y) in x.clone().into_iter().enumerate() {
             // draw end in red
+            let mut is_selected = false;
+            for (x1, y1) in &selected {
+                if i == *x1 && j == *y1 {
+                    is_selected = true;
+                }
+            }
             if y == 9 {
                 print!("{} ", format!("{}", y).bold().red());
             // draw start in green
             } else if y == 8 {
                 print!("{} ", format!("{}", y).bold().green());
             // debug output yellow :)
-            } else if y == 5 {
+            } else if is_selected {
                 print!("{} ", format!("{}", y).bold().yellow());
             } else {
                 print!("{} ", y);
@@ -202,7 +208,7 @@ impl Node {
 impl AStar {
     /// solve the board
     pub fn solve(&mut self) -> () {
-        let mut board = self.board.clone().into_inner();
+        let board = self.board.clone().into_inner();
         let height = board.clone().len();
         let width = board[0].clone().len();
         let mut pos = get_rand_pos(height, width);
@@ -213,10 +219,9 @@ impl AStar {
         }
 
         let node = Node { x: pos.0, y: pos.1 };
-        board[node.x][node.y] = 5;
         node.get_h_cost(self.end.clone());
         self.gen_surrounding();
-        draw_board(board.clone());
+        draw_board(board.clone(), vec![(pos.0, pos.1)]);
         println!("{:?}", self.neighbours_list.borrow());
     }
 
