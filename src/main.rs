@@ -52,9 +52,9 @@ fn gen_board(
     end: (usize, usize),
 ) -> Vec<Vec<usize>> {
     let mut result: Vec<Vec<usize>> = Vec::new();
-    for y in 0..height {
+    for _ in 0..height {
         let mut new_vec: Vec<usize> = vec![];
-        for x in 0..width {
+        for _ in 0..width {
             new_vec.push(gen_blockade());
         }
         result.push(new_vec);
@@ -105,9 +105,9 @@ struct AStar {
     /// the game board
     board: RefCell<Vec<Vec<usize>>>,
     /// the list of the solved path
-    solved_path: Vec<usize>,
+    solved_path: RefCell<Vec<Node>>,
     /// the current neighbours
-    neighbours_list: Vec<Node>,
+    neighbours_list: RefCell<Vec<Node>>,
 }
 
 impl Default for AStar {
@@ -122,13 +122,13 @@ impl Default for AStar {
         ); // random gen numbers for debug
         Self {
             board: RefCell::new(gen_board(height, width, start, end)),
-            solved_path: Vec::new(),
+            solved_path: RefCell::new(Vec::new()),
             start: Node {
                 x: start.0,
                 y: start.1,
             },
             end: Node { x: end.0, y: end.1 },
-            neighbours_list: Vec::new(),
+            neighbours_list: RefCell::new(Vec::new()),
         }
     }
 }
@@ -158,13 +158,13 @@ impl Node {
         let lr = (node.y as i32 - self.y as i32).abs();
         let mut sum_of_moves = (ud + lr).abs();
         if lr < ud {
-            for x in 0..lr {
+            for _ in 0..lr {
                 cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
                 sum_of_moves = sum_of_moves - 2;
             }
         }
         if lr > ud {
-            for x in 0..ud {
+            for _ in 0..ud {
                 cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
                 sum_of_moves = sum_of_moves - 2;
             }
@@ -179,13 +179,13 @@ impl Node {
         let lr = (node.y as i32 - self.y as i32).abs();
         let mut sum_of_moves = (ud + lr).abs();
         if lr < ud {
-            for x in 0..lr {
+            for _ in 0..lr {
                 cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
                 sum_of_moves = sum_of_moves - 2;
             }
         }
         if lr > ud {
-            for x in 0..ud {
+            for _ in 0..ud {
                 cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
                 sum_of_moves = sum_of_moves - 2;
             }
@@ -201,29 +201,35 @@ impl Node {
 
 impl AStar {
     /// solve the board
-    pub fn solve(self) -> () {
+    pub fn solve(&mut self) -> () {
         let mut board = self.board.clone().into_inner();
         let height = board.clone().len();
         let width = board[0].clone().len();
         let mut pos = get_rand_pos(height, width);
+
         // debug
         while pos == (self.end.x, self.end.y) || pos == (self.start.x, self.start.y) {
-            println!("redo");
             pos = get_rand_pos(height, width);
         }
-        println!("rand pos = {:?}", pos);
+
         let node = Node { x: pos.0, y: pos.1 };
         board[node.x][node.y] = 5;
-        node.get_h_cost(self.end);
+        node.get_h_cost(self.end.clone());
+        self.gen_surrounding();
         draw_board(board.clone());
+        println!("{:?}", self.neighbours_list.borrow());
     }
 
-    pub fn gen_surrounding() {
-        unimplemented!();
+    pub fn gen_surrounding(&mut self) {
+        for _ in -1..1 {
+            for _ in -1..1 {
+                self.neighbours_list.borrow_mut().push(Node { x: 0, y: 0 });
+            }
+        }
     }
 }
 
 fn main() {
-    let a_star = AStar::default();
+    let mut a_star = AStar::default();
     a_star.solve();
 }
