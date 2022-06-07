@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::usize;
 
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -25,6 +24,7 @@ lazy_static! {
 /// random generation of blocked nodes
 pub fn gen_blockade() -> usize {
     if thread_rng().gen_ratio(1, 7) {
+        // 1 in 7 chance to get a blocked node
         *BLOCKED_NODE
     } else {
         *FREE_NODE
