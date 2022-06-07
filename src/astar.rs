@@ -61,17 +61,17 @@ pub fn gen_board(
     }
     result[start.0][start.1] = *START_INDICATOR; // start indicator
     result[end.0][end.1] = *END_INDICATOR; // end indicator
-    return result;
+    result
 }
 
 /// draw the board in stdout
-pub fn draw_board(board: Vec<Vec<usize>>, selected: Vec<(usize, usize)>) -> () {
+pub fn draw_board(board: Vec<Vec<usize>>, selected: Vec<(usize, usize)>) {
     print!("     ");
-    for y in 0..board.clone()[0].len() {
+    for y in 0..board[0].len() {
         print!("{} ", y);
     }
-    println!("");
-    for (i, x) in board.clone().iter().enumerate() {
+    println!();
+    for (i, x) in board.iter().enumerate() {
         if i < 10 {
             print!("{}  [ ", i);
         } else {
@@ -100,7 +100,7 @@ pub fn draw_board(board: Vec<Vec<usize>>, selected: Vec<(usize, usize)>) -> () {
             }
         }
         print!("]");
-        println!("");
+        println!();
     }
 }
 
@@ -167,24 +167,24 @@ impl Node {
         // if there are both 1 move to the node x return 14 because that means its diagonal
         // and the cases below don't cover if you only move one diagonally
         if ud == 1 && lr == 1 {
-            return ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+            return ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
         }
 
         let mut sum_of_moves = (ud + lr).abs();
         if lr < ud {
             for _ in 0..lr {
-                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-                sum_of_moves = sum_of_moves - 2;
+                cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves -= 2;
             }
         }
         if lr > ud {
             for _ in 0..ud {
-                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-                sum_of_moves = sum_of_moves - 2;
+                cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves -= 2;
             }
         }
-        cost = cost + (sum_of_moves * *BASE_G_COST);
-        return cost;
+        cost += sum_of_moves * *BASE_G_COST;
+        cost
     }
     /// get the cost from start to node x
     pub fn get_g_cost(self, node: Node) -> i32 {
@@ -193,34 +193,34 @@ impl Node {
         let lr = (node.y as i32 - self.y as i32).abs();
         let mut sum_of_moves = (ud + lr).abs();
         if ud == 1 && lr == 1 {
-            return ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+            return ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
         }
         if lr < ud {
             for _ in 0..lr {
-                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-                sum_of_moves = sum_of_moves - 2;
+                cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves -= 2;
             }
         }
         if lr > ud {
             for _ in 0..ud {
-                cost = cost + ((1 as f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-                sum_of_moves = sum_of_moves - 2;
+                cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
+                sum_of_moves -= 2;
             }
         }
-        cost = cost + (sum_of_moves * *BASE_G_COST);
-        return cost;
+        cost += sum_of_moves * *BASE_G_COST;
+        cost
     }
     /// get the f cost g + h cost
     pub fn get_f_cost(&self, start: Node, end: Node) -> i32 {
-        return self.clone().get_g_cost(start) + self.clone().get_h_cost(end);
+        self.clone().get_g_cost(start) + self.clone().get_h_cost(end)
     }
 }
 
 impl AStar {
     /// solve the board
-    pub fn solve(&mut self) -> () {
+    pub fn solve(&mut self) {
         let board = self.board.clone().into_inner();
-        let height = board.clone().len();
+        let height = board.len();
         let width = board[0].clone().len();
         let mut pos = get_rand_pos(height, width);
 
@@ -232,12 +232,16 @@ impl AStar {
         let node = Node { x: pos.0, y: pos.1 };
         let h_cost = node.clone().get_h_cost(self.end.clone());
         let g_cost = node.clone().get_g_cost(self.start.clone());
-        let f_cost = node
-            .clone()
-            .get_f_cost(self.start.clone(), self.end.clone());
+        let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
         self.gen_surrounding();
-        draw_board(board.clone(), vec![(pos.0, pos.1)]);
+        draw_board(board, vec![(pos.0, pos.1)]);
         println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
+        println!(
+            "{} {} {}",
+            "selected".to_string().yellow(),
+            "start".to_string().green(),
+            "end".to_string().red()
+        );
     }
 
     pub fn gen_surrounding(&mut self) {
