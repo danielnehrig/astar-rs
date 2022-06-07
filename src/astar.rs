@@ -162,8 +162,8 @@ impl Node {
 
         // diag faster
         let mut cost: i32 = 0;
-        let ud = (node.x as i32 - self.x as i32).abs();
-        let lr = (node.y as i32 - self.y as i32).abs();
+        let ud = (node.x as i32).abs_diff(self.x as i32) as i32;
+        let lr = (node.y as i32).abs_diff(self.y as i32) as i32;
         // if there are both 1 move to the node x return 14 because that means its diagonal
         // and the cases below don't cover if you only move one diagonally
         if ud == 1 && lr == 1 {
@@ -189,8 +189,8 @@ impl Node {
     /// get the cost from start to node x
     pub fn get_g_cost(self, node: Node) -> i32 {
         let mut cost: i32 = 0;
-        let ud = (node.x as i32 - self.x as i32).abs();
-        let lr = (node.y as i32 - self.y as i32).abs();
+        let ud = (node.x as i32).abs_diff(self.x as i32) as i32;
+        let lr = (node.y as i32).abs_diff(self.y as i32) as i32;
         let mut sum_of_moves = (ud + lr).abs();
         if ud == 1 && lr == 1 {
             return ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
