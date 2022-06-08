@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use std::borrow::Borrow;
+
     use crate::astar::Node;
     use crate::astar::*;
 
@@ -67,5 +69,21 @@ mod tests {
         let x = Node { x: 8, y: 6 };
         let h = x.get_h_cost(end_node);
         assert!(h == 34);
+    }
+
+    /// test serrounding neighbours
+    #[test]
+    fn neighbours() {
+        let start = Node { x: 1, y: 1 };
+        let end = Node { x: 2, y: 2 };
+        let mut board = vec![vec![0, 0, 1], vec![1, 0, 0], vec![0, 0, 0]];
+        // set end and start
+        board[start.x as usize][start.y as usize] = 8;
+        board[end.x as usize][end.y as usize] = 9;
+        // get astar with board
+        let mut astar = AStar::with_board(board, start, end);
+        // generate surrounding neighbours
+        astar.gen_surrounding();
+        assert!(astar.neighbours_list.borrow().len() == 6);
     }
 }

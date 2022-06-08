@@ -1,11 +1,15 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::env;
+use std::ops::Add;
 
 use colored::Colorize;
 use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
 lazy_static! {
+    /// is debug enabled?
+    static ref DEBUG_ON: bool = env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true";
     /// the bondues for a diag node
     static ref DIAG_BONUS: f32 = 1.4;
     /// base g cost
@@ -158,15 +162,15 @@ impl Node {
 
         // diag faster
         let mut cost: i32 = 0;
-        let ud = (node.x as i32).abs_diff(self.x as i32) as i32;
-        let lr = (node.y as i32).abs_diff(self.y as i32) as i32;
+        let ud = node.x.abs_diff(self.x) as i32;
+        let lr = node.y.abs_diff(self.y) as i32;
         // if there are both 1 move to the node x return 14 because that means its diagonal
         // and the cases below don't cover if you only move one diagonally
         if ud == 1 && lr == 1 {
             return ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
         }
 
-        let mut sum_of_moves = (ud + lr).abs();
+        let mut sum_of_moves = ud.add(lr).abs();
         if lr < ud {
             for _ in 0..lr {
                 cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
@@ -213,6 +217,23 @@ impl Node {
 }
 
 impl AStar {
+    pub fn with_board(board: Vec<Vec<i32>>, start: Node, end: Node) -> Self {
+        let height = gen_range(3); // board height
+        let width = gen_range(5); // board width
+        if *DEBUG_ON {
+            println!(
+                "height: {} width: {} start: {:?} end: {:?}",
+                height, width, start, end
+            ); // random gen numbers for debug
+        }
+        Self {
+            board: RefCell::new(board),
+            solved_path: RefCell::new(Vec::new()),
+            start,
+            end,
+            neighbours_list: RefCell::new(Vec::new()),
+        }
+    }
     /// solve the board
     pub fn solve(&mut self) {
         let board = self.board.clone().into_inner();
@@ -241,6 +262,10 @@ impl AStar {
     }
 
     /// generate a list of relative nodes from the selected/start node to be checked next
+    pub fn clear_neigbours(&mut self) {
+        self.board.borrow_mut().clear();
+    }
+
     pub fn gen_surrounding(&mut self) {
         for x in -1_i32..2_i32 {
             for y in -1_i32..2_i32 {
@@ -266,6 +291,5 @@ impl AStar {
                 }
             }
         }
-        println!("{:?}", self.neighbours_list.borrow());
     }
 }
