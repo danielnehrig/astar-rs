@@ -9,7 +9,11 @@ use rand::{thread_rng, Rng};
 
 lazy_static! {
     /// is debug enabled?
-    static ref DEBUG_ON: bool = env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true";
+    static ref IS_DEBUG: bool = env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true";
+    /// is test
+    static ref IS_TEST: bool = env::var("TEST").unwrap_or_else(|_| "false".to_string()) == *"true";
+    /// is ci
+    static ref IS_CI: bool = env::var("CI").unwrap_or_else(|_| "false".to_string()) == *"true";
     /// the bondues for a diag node
     static ref DIAG_BONUS: f32 = 1.4;
     /// base g cost
@@ -220,7 +224,7 @@ impl AStar {
     pub fn with_board(board: Vec<Vec<i32>>, start: Node, end: Node) -> Self {
         let height = gen_range(3); // board height
         let width = gen_range(5); // board width
-        if *DEBUG_ON {
+        if *IS_DEBUG {
             println!(
                 "height: {} width: {} start: {:?} end: {:?}",
                 height, width, start, end
@@ -263,7 +267,7 @@ impl AStar {
 
     /// generate a list of relative nodes from the selected/start node to be checked next
     pub fn clear_neigbours(&mut self) {
-        self.board.borrow_mut().clear();
+        self.neighbours_list.borrow_mut().clear();
     }
 
     pub fn gen_surrounding(&mut self) {

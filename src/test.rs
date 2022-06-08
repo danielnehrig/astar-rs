@@ -86,4 +86,21 @@ mod tests {
         astar.gen_surrounding();
         assert!(astar.neighbours_list.borrow().len() == 6);
     }
+
+    #[test]
+    fn neighbours_are_cleared() {
+        let start = Node { x: 1, y: 1 };
+        let end = Node { x: 2, y: 2 };
+        let mut board = vec![vec![0, 0, 1], vec![1, 0, 0], vec![0, 0, 0]];
+        // set end and start
+        board[start.x as usize][start.y as usize] = 8;
+        board[end.x as usize][end.y as usize] = 9;
+        // get astar with board
+        let mut astar = AStar::with_board(board, start, end);
+        // generate surrounding neighbours
+        astar.gen_surrounding();
+        astar.clear_neigbours();
+        println!("{:?}", astar.neighbours_list.borrow());
+        assert!(astar.neighbours_list.borrow().len() == 0);
+    }
 }
