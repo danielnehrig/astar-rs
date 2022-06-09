@@ -263,18 +263,21 @@ impl AStar {
         let mut end_reached = false;
 
         while !end_reached {
-            print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
-                                                            // self.clear_neigbours();
-            self.visited.borrow_mut().push(self.current_node.clone());
+            // print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
+            // self.clear_neigbours();
             self.gen_surrounding();
-            let node = self.neighbours_list.borrow_mut().pop_front().unwrap();
+            self.visited.borrow_mut().push(self.current_node.clone());
+            let node = self
+                .neighbours_list
+                .borrow_mut()
+                .pop_front()
+                .expect("COULD NOT POP OUT VALUE NO VALUE IN ARRAY");
             self.current_node = node.clone();
             highlights.push((node.x, node.y));
             // self.solved_path.borrow_mut().push(node);
             if self.current_node == self.end {
                 end_reached = true;
             }
-            println!("{:?}", self.neighbours_list.borrow().clone());
             if self.neighbours_list.borrow().len() == 0 {
                 println!("NO PATH FOUND");
                 break;
@@ -292,6 +295,8 @@ impl AStar {
                 let g_cost = node.clone().get_g_cost(self.start.clone());
                 let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
                 println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
+                println!("neighbours: {:?}", self.neighbours_list.borrow().clone());
+                println!("visited: {:?}", self.visited.borrow().clone());
                 println!(
                     "{} {} {}",
                     "selected".to_string().yellow(),
@@ -301,7 +306,7 @@ impl AStar {
             }
 
             draw_board(board.clone(), highlights.clone());
-            sleep(Duration::from_millis(500));
+            // sleep(Duration::from_millis(500));
         }
         println!(
             "END FOUND FINAL PATH = {:?}",
@@ -336,7 +341,13 @@ impl AStar {
                             x: start.x + x as i32,
                             y: start.y + y as i32,
                         };
-                        if !self.visited.borrow().contains(&node.clone()) {
+                        if !self
+                            .visited
+                            .borrow()
+                            .iter()
+                            .any(|n| n.x == node.x && n.y == node.y)
+                            && !result.iter().any(|n| n.x == node.x && n.y == node.y)
+                        {
                             result.push(node);
                         }
                     }
