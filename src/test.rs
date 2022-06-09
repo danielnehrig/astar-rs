@@ -17,6 +17,8 @@ mod tests {
     ///  use cases:
     ///  Diagnoal cost is 14 because
     ///  it'll reach its goal faster
+    /// Expected move pattern
+    /// [6][6] = 14 cost
     fn h_cost_1() {
         let end_node = Node { x: 5, y: 5 };
         let x = Node { x: 6, y: 6 };
@@ -33,6 +35,8 @@ mod tests {
     /// like this
     /// the dots represent 0 - 4 like in the first test
     /// for simplicity sake we'll shorten them for following tests
+    /// Expected move pattern
+    /// [6][5] = 10 cost
     #[test]
     fn h_cost_2() {
         let end_node = Node { x: 5, y: 5 };
@@ -48,6 +52,10 @@ mod tests {
     /// 6
     /// 7
     /// 8   x
+    /// Expected move pattern
+    /// [6][5] = 10 cost
+    /// [7][5] = 20 cost
+    /// [8][5] = 30 cost
     #[test]
     fn h_cost_3() {
         let end_node = Node { x: 5, y: 5 };
@@ -63,6 +71,10 @@ mod tests {
     /// 6
     /// 7
     /// 8     x
+    /// Expected move pattern
+    /// [6][6] = 14 cost
+    /// [7][6] = 24 cost
+    /// [8][6] = 34 cost
     #[test]
     fn h_cost_4() {
         let end_node = Node { x: 5, y: 5 };
@@ -85,6 +97,26 @@ mod tests {
         // generate surrounding neighbours
         astar.gen_surrounding();
         assert!(astar.neighbours_list.borrow().len() == 6);
+    }
+
+    #[test]
+    fn neighbours_2() {
+        let start = Node { x: 1, y: 2 };
+        let end = Node { x: 3, y: 4 };
+        let mut board = vec![
+            vec![0, 1, 1, 1, 1],
+            vec![0, 1, 8, 1, 0],
+            vec![0, 1, 1, 0, 0],
+            vec![0, 0, 0, 0, 9],
+        ];
+        // set end and start
+        board[start.x as usize][start.y as usize] = 8;
+        board[end.x as usize][end.y as usize] = 9;
+        // get astar with board
+        let mut astar = AStar::with_board(board, start, end);
+        // generate surrounding neighbours
+        astar.gen_surrounding();
+        assert!(astar.neighbours_list.borrow().len() == 1);
     }
 
     #[test]
