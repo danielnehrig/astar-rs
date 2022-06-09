@@ -83,6 +83,28 @@ mod tests {
         assert!(h == 34);
     }
 
+    ///    0 1 2 3 4 5 6 7 8
+    ///  0
+    ///  1   s
+    ///  2
+    ///  3
+    ///  4
+    ///  5           e
+    ///  6
+    ///  7
+    ///  8             x
+    ///  g cost should be 90
+    ///  h cost should be 34
+    ///  f cost should be g + h cost
+    #[test]
+    fn f_cost() {
+        let start_node = Node { x: 1, y: 1 };
+        let end_node = Node { x: 5, y: 5 };
+        let x = Node { x: 8, y: 6 };
+        let f = x.get_f_cost(start_node, end_node);
+        assert!(f == 90 + 34);
+    }
+
     /// test serrounding neighbours
     #[test]
     fn neighbours() {
