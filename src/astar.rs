@@ -123,6 +123,8 @@ pub struct AStar {
     pub solved_path: RefCell<Vec<Node>>,
     /// the current neighbours
     pub neighbours_list: RefCell<VecDeque<Node>>,
+    /// the nodes that are visited and checked
+    pub visited: RefCell<Vec<Node>>,
     /// current node
     pub current_node: Node,
 }
@@ -152,6 +154,7 @@ impl Default for AStar {
             },
             end: Node { x: end.0, y: end.1 },
             neighbours_list: RefCell::new(VecDeque::new()),
+            visited: RefCell::new(Vec::new()),
         }
     }
 }
@@ -247,6 +250,7 @@ impl AStar {
             start,
             end,
             neighbours_list: RefCell::new(VecDeque::new()),
+            visited: RefCell::new(Vec::new()),
         }
     }
     /// solve the board
@@ -261,11 +265,12 @@ impl AStar {
         while !end_reached {
             print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
                                                             // self.clear_neigbours();
+            self.visited.borrow_mut().push(self.current_node.clone());
             self.gen_surrounding();
             let node = self.neighbours_list.borrow_mut().pop_front().unwrap();
             self.current_node = node.clone();
             highlights.push((node.x, node.y));
-            self.solved_path.borrow_mut().push(node);
+            // self.solved_path.borrow_mut().push(node);
             if self.current_node == self.end {
                 end_reached = true;
             }
@@ -327,10 +332,13 @@ impl AStar {
                 {
                     let current_node = self.board.borrow()[r_x as usize][r_y as usize];
                     if current_node != 1 {
-                        result.push(Node {
+                        let node = Node {
                             x: start.x + x as i32,
                             y: start.y + y as i32,
-                        });
+                        };
+                        if !self.visited.borrow().contains(&node.clone()) {
+                            result.push(node);
+                        }
                     }
                 }
             }
