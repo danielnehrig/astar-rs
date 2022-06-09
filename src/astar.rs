@@ -301,7 +301,7 @@ impl AStar {
             }
 
             draw_board(board.clone(), highlights.clone());
-            sleep(Duration::new(1, 0));
+            sleep(Duration::from_millis(500));
         }
         println!(
             "END FOUND FINAL PATH = {:?}",
