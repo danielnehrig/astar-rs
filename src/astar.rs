@@ -3,6 +3,8 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::env;
 use std::ops::Add;
+use std::thread::sleep;
+use std::time::Duration;
 
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -122,7 +124,9 @@ pub struct AStar {
     /// the current neighbours
     pub neighbours_list: RefCell<VecDeque<Node>>,
     /// the nodes that are visited and checked
-    pub visited: RefCell<Vec<Node>>,
+    pub closed: RefCell<Vec<Node>>,
+    /// open nodes
+    pub open: RefCell<VecDeque<Node>>,
     /// current node
     pub current_node: Node,
 }
@@ -152,7 +156,8 @@ impl Default for AStar {
             },
             end: Node { x: end.0, y: end.1 },
             neighbours_list: RefCell::new(VecDeque::new()),
-            visited: RefCell::new(Vec::new()),
+            closed: RefCell::new(Vec::new()),
+            open: RefCell::new(VecDeque::new()),
         }
     }
 }
@@ -173,6 +178,9 @@ impl PartialEq for Node {
 
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
+    pub fn is_traversible(self, board: Vec<Vec<i32>>) -> bool {
+        board[self.x as usize][self.y as usize] != 1
+    }
     /// get the cost from the end node to node x
     /// get the g cost as well
     pub fn get_cost(self, node: Node) -> i32 {
@@ -225,76 +233,74 @@ impl AStar {
             start,
             end,
             neighbours_list: RefCell::new(VecDeque::new()),
-            visited: RefCell::new(Vec::new()),
+            closed: RefCell::new(Vec::new()),
+            open: RefCell::new(VecDeque::new()),
         }
     }
     /// solve the board
     pub fn solve(&mut self) {
-        let board = self.board.clone().into_inner();
-        let height: i32 = board.len() as i32;
-        let width: i32 = board[0].clone().len() as i32;
-        let mut pos = get_rand_pos(height, width);
-        let mut highlights = Vec::new();
-        let mut end_reached = false;
+        // let board = self.board.clone().into_inner();
+        // let height: i32 = board.len() as i32;
+        // let width: i32 = board[0].clone().len() as i32;
+        // let mut pos = get_rand_pos(height, width);
+        // let mut highlights = Vec::new();
+        // let mut end_reached = false;
+        self.open.borrow_mut().push_front(self.current_node.clone());
 
-        while !end_reached {
-            print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
-            self.gen_surrounding();
-            self.visited.borrow_mut().push(self.current_node.clone());
-            let node = self
-                .neighbours_list
-                .borrow_mut()
-                .pop_front()
-                .expect("COULD NOT POP OUT VALUE NO VALUE IN ARRAY");
-            self.current_node = node.clone();
-            highlights.push((node.x, node.y));
-            // self.solved_path.borrow_mut().push(node);
+        loop {
+            self.current_node = self.open.borrow_mut().pop_front().unwrap();
+            self.closed.borrow_mut().push(self.current_node.clone());
             if self.current_node == self.end {
-                end_reached = true;
+                return;
             }
-            if self.neighbours_list.borrow().len() == 0 {
-                println!("NO PATH FOUND");
-                end_reached = true;
-            }
-            if *IS_DEBUG {
-                // debug
-                //
-                while pos == (self.end.x, self.end.y) || pos == (self.start.x, self.start.y) {
-                    pos = get_rand_pos(height, width);
+
+            self.gen_surrounding();
+            let board = self.board.clone().borrow().clone();
+            for neighbour in self.neighbours_list.borrow().iter() {
+                if !neighbour.clone().is_traversible(board.clone())
+                    || self.closed.borrow().contains(neighbour)
+                {
+                    continue;
                 }
 
-                highlights.push((pos.0, pos.1));
-                let node = Node { x: pos.0, y: pos.1 };
-                let h_cost = node.clone().get_cost(self.end.clone());
-                let g_cost = node.clone().get_cost(self.start.clone());
-                let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
-                println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
-                println!("neighbours: {:?}", self.neighbours_list.borrow().clone());
-                println!("visited: {:?}", self.visited.borrow().clone());
-                println!(
-                    "{} {} {}",
-                    "selected".to_string().yellow(),
-                    "start".to_string().green(),
-                    "end".to_string().red()
-                );
+                if !self.open.borrow().contains(neighbour) {
+                    if !self.open.borrow().contains(neighbour) {
+                        self.open.borrow_mut().push_front(neighbour.clone());
+                    }
+                }
             }
-
-            draw_board(board.clone(), highlights.clone());
-            // sleep(Duration::from_millis(500));
         }
-        println!(
-            "END FOUND FINAL PATH = {:?}",
-            self.solved_path.borrow().clone()
-        );
-    }
 
-    /// generate a list of relative nodes from the selected/start node to be checked next
-    pub fn clear_neigbours(&mut self) {
-        self.neighbours_list.borrow_mut().clear();
+        // while false {
+        // print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
+        // self.gen_surrounding();
+        // self.closed.borrow_mut().push(self.current_node.clone());
+        // let node = self
+        // .neighbours_list
+        // .borrow_mut()
+        // .pop_front()
+        // .expect("COULD NOT POP OUT VALUE NO VALUE IN ARRAY");
+        // self.current_node = node.clone();
+        // if self.neighbours_list.borrow().len() == 0 {
+        // self.gen_surrounding();
+        // if self.neighbours_list.borrow().len() == 0 {
+        // println!("NO PATH FOUND");
+        // end_reached = true;
+        // }
+        // }
+        // highlights.push((node.x, node.y));
+        // // self.solved_path.borrow_mut().push(node);
+        // if self.current_node == self.end {
+        // end_reached = true;
+        // }
+
+        // draw_board(board.clone(), highlights.clone());
+        // sleep(Duration::from_millis(200));
+        // }
     }
 
     pub fn gen_surrounding(&mut self) {
-        let mut result = Vec::from(self.neighbours_list.borrow().clone());
+        let mut result = Vec::new();
         for x in -1_i32..2_i32 {
             for y in -1_i32..2_i32 {
                 let start = self.current_node.borrow();
@@ -303,28 +309,15 @@ impl AStar {
                 let r_x = start.x + x; // relative position from start/current node
                 let r_y = start.y + y;
                 // cases:
-                // don't add start node
                 // don't add nodes out of bounds
-                // don't add nodes that are blocked
                 if !(r_x == start.x && r_y == start.y)
                     && ((r_x >= 0 && r_x <= board_x) && (r_y >= 0 && r_y <= board_y))
                 {
-                    let current_node = self.board.borrow()[r_x as usize][r_y as usize];
-                    if current_node != 1 {
-                        let node = Node {
-                            x: start.x + x as i32,
-                            y: start.y + y as i32,
-                        };
-                        if !self
-                            .visited
-                            .borrow()
-                            .iter()
-                            .any(|n| n.x == node.x && n.y == node.y)
-                            && !result.iter().any(|n| n.x == node.x && n.y == node.y)
-                        {
-                            result.push(node);
-                        }
-                    }
+                    let node = Node {
+                        x: start.x + x as i32,
+                        y: start.y + y as i32,
+                    };
+                    result.push(node);
                 }
             }
         }
