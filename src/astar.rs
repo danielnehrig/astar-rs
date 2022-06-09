@@ -1,7 +1,10 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::env;
 use std::ops::Add;
+use std::thread::sleep;
+use std::time::Duration;
 
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -23,7 +26,7 @@ lazy_static! {
     /// indicator for end position
     static ref END_INDICATOR: i32 = 9;
     /// the max board size
-    static ref MAX_BOARD_SIZE: i32 = 13;
+    static ref MAX_BOARD_SIZE: i32 = 23;
     /// the blocked node value
     static ref BLOCKED_NODE: i32 = 1;
     /// the free node value
@@ -32,7 +35,7 @@ lazy_static! {
 
 /// random generation of blocked nodes
 pub fn gen_blockade() -> i32 {
-    if thread_rng().gen_ratio(1, 7) {
+    if thread_rng().gen_ratio(1, 2) {
         // 1 in 7 chance to get a blocked node
         *BLOCKED_NODE
     } else {
@@ -98,7 +101,7 @@ pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<(i32, i32)>) {
             } else if is_selected {
                 print!("{} ", format!("{}", y).bold().yellow());
             } else if y == 1 {
-                print!("{} ", format!("{}", y).bold().bright_blue());
+                print!("{} ", format!("{}", y).bold().blue());
             } else {
                 print!("{} ", y);
             }
@@ -119,28 +122,36 @@ pub struct AStar {
     /// the list of the solved path
     pub solved_path: RefCell<Vec<Node>>,
     /// the current neighbours
-    pub neighbours_list: RefCell<Vec<Node>>,
+    pub neighbours_list: RefCell<VecDeque<Node>>,
+    /// current node
+    pub current_node: Node,
 }
 
 impl Default for AStar {
     fn default() -> Self {
-        let height = gen_range(3); // board height
-        let width = gen_range(5); // board width
+        let height = gen_range(15); // board height
+        let width = gen_range(19); // board width
         let start = get_rand_pos(height, width); // start position tuple
         let end = get_rand_pos(height, width); // end position tuple
-        println!(
-            "height: {} width: {} start: {:?} end: {:?}",
-            height, width, start, end
-        ); // random gen numbers for debug
+        if *IS_DEBUG {
+            println!(
+                "height: {} width: {} start: {:?} end: {:?}",
+                height, width, start, end
+            ); // random gen numbers for debug
+        }
         Self {
             board: RefCell::new(gen_board(height, width, start, end)),
             solved_path: RefCell::new(Vec::new()),
+            current_node: Node {
+                x: start.0,
+                y: start.1,
+            },
             start: Node {
                 x: start.0,
                 y: start.1,
             },
             end: Node { x: end.0, y: end.1 },
-            neighbours_list: RefCell::new(Vec::new()),
+            neighbours_list: RefCell::new(VecDeque::new()),
         }
     }
 }
@@ -153,17 +164,16 @@ pub struct Node {
     pub y: i32,
 }
 
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
     /// get the cost from the end node to node x
     pub fn get_h_cost(self, node: Node) -> i32 {
-        // manhatten metrik
-        // let mut cost: i32 = 0;
-        // let up_down_diff = (node.x as i32 - self.x as i32).abs();
-        // let left_right_diff = (node.y as i32 - self.y as i32).abs();
-        // let sum_of_moves = (up_down_diff + left_right_diff).abs();
-        // cost = sum_of_moves * *BASE_G_COST;
-
         // diag faster
         let mut cost: i32 = 0;
         let ud = node.x.abs_diff(self.x) as i32;
@@ -233,9 +243,10 @@ impl AStar {
         Self {
             board: RefCell::new(board),
             solved_path: RefCell::new(Vec::new()),
+            current_node: start.clone(),
             start,
             end,
-            neighbours_list: RefCell::new(Vec::new()),
+            neighbours_list: RefCell::new(VecDeque::new()),
         }
     }
     /// solve the board
@@ -244,24 +255,52 @@ impl AStar {
         let height: i32 = board.len() as i32;
         let width: i32 = board[0].clone().len() as i32;
         let mut pos = get_rand_pos(height, width);
+        let mut highlights = Vec::new();
+        let mut end_reached = false;
 
-        // debug
-        while pos == (self.end.x, self.end.y) || pos == (self.start.x, self.start.y) {
-            pos = get_rand_pos(height, width);
+        while !end_reached {
+            print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
+                                                            // self.clear_neigbours();
+            self.gen_surrounding();
+            let node = self.neighbours_list.borrow_mut().pop_front().unwrap();
+            self.current_node = node.clone();
+            highlights.push((node.x, node.y));
+            self.solved_path.borrow_mut().push(node);
+            if self.current_node == self.end {
+                end_reached = true;
+            }
+            println!("{:?}", self.neighbours_list.borrow().clone());
+            if self.neighbours_list.borrow().len() == 0 {
+                println!("NO PATH FOUND");
+                break;
+            }
+            if *IS_DEBUG {
+                // debug
+                //
+                while pos == (self.end.x, self.end.y) || pos == (self.start.x, self.start.y) {
+                    pos = get_rand_pos(height, width);
+                }
+
+                highlights.push((pos.0, pos.1));
+                let node = Node { x: pos.0, y: pos.1 };
+                let h_cost = node.clone().get_h_cost(self.end.clone());
+                let g_cost = node.clone().get_g_cost(self.start.clone());
+                let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
+                println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
+                println!(
+                    "{} {} {}",
+                    "selected".to_string().yellow(),
+                    "start".to_string().green(),
+                    "end".to_string().red()
+                );
+            }
+
+            draw_board(board.clone(), highlights.clone());
+            sleep(Duration::new(1, 0));
         }
-
-        let node = Node { x: pos.0, y: pos.1 };
-        let h_cost = node.clone().get_h_cost(self.end.clone());
-        let g_cost = node.clone().get_g_cost(self.start.clone());
-        let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
-        self.gen_surrounding();
-        draw_board(board, vec![(pos.0, pos.1)]);
-        println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
         println!(
-            "{} {} {}",
-            "selected".to_string().yellow(),
-            "start".to_string().green(),
-            "end".to_string().red()
+            "END FOUND FINAL PATH = {:?}",
+            self.solved_path.borrow().clone()
         );
     }
 
@@ -271,9 +310,10 @@ impl AStar {
     }
 
     pub fn gen_surrounding(&mut self) {
+        let mut result = Vec::from(self.neighbours_list.borrow().clone());
         for x in -1_i32..2_i32 {
             for y in -1_i32..2_i32 {
-                let start = self.start.borrow();
+                let start = self.current_node.borrow();
                 let board_x = self.board.borrow().len() as i32 - 1;
                 let board_y = self.board.borrow()[0].len() as i32 - 1;
                 let r_x = start.x + x; // relative position from start/current node
@@ -287,7 +327,7 @@ impl AStar {
                 {
                     let current_node = self.board.borrow()[r_x as usize][r_y as usize];
                     if current_node != 1 {
-                        self.neighbours_list.borrow_mut().push(Node {
+                        result.push(Node {
                             x: start.x + x as i32,
                             y: start.y + y as i32,
                         });
@@ -295,5 +335,13 @@ impl AStar {
                 }
             }
         }
+
+        // sort neighbour list based on h cost
+        result.sort_by(|a, b| {
+            a.clone()
+                .get_h_cost(self.end.clone())
+                .cmp(&b.clone().get_h_cost(self.end.clone()))
+        });
+        self.neighbours_list.replace(result.into());
     }
 }
