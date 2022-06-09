@@ -73,11 +73,11 @@ pub fn gen_board(height: i32, width: i32, start: (i32, i32), end: (i32, i32)) ->
 
 /// draw the board in stdout
 pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<(i32, i32)>) {
-    print!("     ");
-    for y in 0..board[0].len() {
-        print!("{} ", y);
-    }
-    println!();
+    // print!("     ");
+    // for y in 0..board[0].len() {
+    // print!("{} ", y);
+    // }
+    // println!();
     for (i, x) in board.iter().enumerate() {
         if i < 10 {
             print!("{}  [ ", i);
@@ -263,8 +263,7 @@ impl AStar {
         let mut end_reached = false;
 
         while !end_reached {
-            // print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
-            // self.clear_neigbours();
+            print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
             self.gen_surrounding();
             self.visited.borrow_mut().push(self.current_node.clone());
             let node = self
@@ -280,7 +279,7 @@ impl AStar {
             }
             if self.neighbours_list.borrow().len() == 0 {
                 println!("NO PATH FOUND");
-                break;
+                end_reached = true;
             }
             if *IS_DEBUG {
                 // debug
