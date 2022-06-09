@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::env;
 use std::ops::Add;
 use std::thread::sleep;
@@ -162,7 +162,7 @@ impl Default for AStar {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Node {
     /// x,height, column
     pub x: i32,
@@ -175,6 +175,8 @@ impl PartialEq for Node {
         self.x == other.x && self.y == other.y
     }
 }
+
+impl Eq for Node {}
 
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
@@ -237,25 +239,25 @@ impl AStar {
             open: RefCell::new(VecDeque::new()),
         }
     }
-    /// solve the board
-    pub fn solve(&mut self) {
-        // let board = self.board.clone().into_inner();
-        // let height: i32 = board.len() as i32;
-        // let width: i32 = board[0].clone().len() as i32;
-        // let mut pos = get_rand_pos(height, width);
-        // let mut highlights = Vec::new();
-        // let mut end_reached = false;
-        self.open.borrow_mut().push_front(self.current_node.clone());
 
-        loop {
+    /// solve the board
+    pub fn solve(&mut self) -> Option<Vec<Node>> {
+        self.open.borrow_mut().push_front(self.current_node.clone());
+        let mut came_from: HashMap<Node, Node> = HashMap::new();
+        let mut highlights = Vec::new();
+
+        while self.open.borrow().len() != 0 {
             self.current_node = self.open.borrow_mut().pop_front().unwrap();
             self.closed.borrow_mut().push(self.current_node.clone());
+            highlights.push((self.current_node.x, self.current_node.y));
             if self.current_node == self.end {
-                return;
+                println!("Found End");
+                return None;
             }
 
             self.gen_surrounding();
             let board = self.board.clone().borrow().clone();
+
             for neighbour in self.neighbours_list.borrow().iter() {
                 if !neighbour.clone().is_traversible(board.clone())
                     || self.closed.borrow().contains(neighbour)
@@ -263,40 +265,23 @@ impl AStar {
                     continue;
                 }
 
-                if !self.open.borrow().contains(neighbour) {
+                let ten = self.current_node.clone().get_cost(self.start.clone())
+                    + self.current_node.clone().get_cost(neighbour.clone());
+                let neigh = neighbour.clone().get_cost(self.start.clone());
+                println!("ten {} / neig {}", ten, neigh);
+                if ten < neigh {
+                    came_from.insert(neighbour.clone(), self.current_node.clone());
+
                     if !self.open.borrow().contains(neighbour) {
                         self.open.borrow_mut().push_front(neighbour.clone());
                     }
                 }
             }
+            draw_board(self.board.borrow().clone(), highlights.clone());
         }
 
-        // while false {
-        // print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
-        // self.gen_surrounding();
-        // self.closed.borrow_mut().push(self.current_node.clone());
-        // let node = self
-        // .neighbours_list
-        // .borrow_mut()
-        // .pop_front()
-        // .expect("COULD NOT POP OUT VALUE NO VALUE IN ARRAY");
-        // self.current_node = node.clone();
-        // if self.neighbours_list.borrow().len() == 0 {
-        // self.gen_surrounding();
-        // if self.neighbours_list.borrow().len() == 0 {
-        // println!("NO PATH FOUND");
-        // end_reached = true;
-        // }
-        // }
-        // highlights.push((node.x, node.y));
-        // // self.solved_path.borrow_mut().push(node);
-        // if self.current_node == self.end {
-        // end_reached = true;
-        // }
-
-        // draw_board(board.clone(), highlights.clone());
-        // sleep(Duration::from_millis(200));
-        // }
+        println!("No Path Found");
+        None
     }
 
     pub fn gen_surrounding(&mut self) {
