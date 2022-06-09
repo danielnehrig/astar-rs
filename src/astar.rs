@@ -3,8 +3,6 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::env;
 use std::ops::Add;
-use std::thread::sleep;
-use std::time::Duration;
 
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -176,7 +174,8 @@ impl PartialEq for Node {
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
     /// get the cost from the end node to node x
-    pub fn get_h_cost(self, node: Node) -> i32 {
+    /// get the g cost as well
+    pub fn get_cost(self, node: Node) -> i32 {
         // diag faster
         let mut cost: i32 = 0;
         let ud = node.x.abs_diff(self.x) as i32;
@@ -203,33 +202,9 @@ impl Node {
         cost += sum_of_moves * *BASE_G_COST;
         cost
     }
-    /// get the cost from start to node x
-    pub fn get_g_cost(self, node: Node) -> i32 {
-        let mut cost: i32 = 0;
-        let ud = (node.x as i32).abs_diff(self.x as i32) as i32;
-        let lr = (node.y as i32).abs_diff(self.y as i32) as i32;
-        let mut sum_of_moves = (ud + lr).abs();
-        if ud == 1 && lr == 1 {
-            return ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-        }
-        if lr < ud {
-            for _ in 0..lr {
-                cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-                sum_of_moves -= 2;
-            }
-        }
-        if lr > ud {
-            for _ in 0..ud {
-                cost += ((1_f32 * *BASE_G_COST as f32) * *DIAG_BONUS) as i32;
-                sum_of_moves -= 2;
-            }
-        }
-        cost += sum_of_moves * *BASE_G_COST;
-        cost
-    }
     /// get the f cost g + h cost
     pub fn get_f_cost(&self, start: Node, end: Node) -> i32 {
-        self.clone().get_g_cost(start) + self.clone().get_h_cost(end)
+        self.clone().get_cost(start) + self.clone().get_cost(end)
     }
 }
 
@@ -290,8 +265,8 @@ impl AStar {
 
                 highlights.push((pos.0, pos.1));
                 let node = Node { x: pos.0, y: pos.1 };
-                let h_cost = node.clone().get_h_cost(self.end.clone());
-                let g_cost = node.clone().get_g_cost(self.start.clone());
+                let h_cost = node.clone().get_cost(self.end.clone());
+                let g_cost = node.clone().get_cost(self.start.clone());
                 let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
                 println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
                 println!("neighbours: {:?}", self.neighbours_list.borrow().clone());
@@ -357,8 +332,8 @@ impl AStar {
         // sort neighbour list based on h cost
         result.sort_by(|a, b| {
             a.clone()
-                .get_h_cost(self.end.clone())
-                .cmp(&b.clone().get_h_cost(self.end.clone()))
+                .get_f_cost(self.start.clone(), self.end.clone())
+                .cmp(&b.clone().get_f_cost(self.start.clone(), self.end.clone()))
         });
         self.neighbours_list.replace(result.into());
     }
