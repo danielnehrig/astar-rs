@@ -35,12 +35,21 @@ lazy_static! {
 
 /// random generation of blocked nodes
 pub fn gen_blockade() -> i32 {
-    if thread_rng().gen_ratio(1, 2) {
+    if thread_rng().gen_ratio(1, 9) {
         // 1 in 7 chance to get a blocked node
         *BLOCKED_NODE
     } else {
         *FREE_NODE
     }
+}
+
+pub fn reconstruct_path(came_from: HashMap<Node, Node>, mut current: Node) -> Vec<Node> {
+    let mut path: Vec<Node> = Vec::new();
+    while came_from.contains_key(&current) {
+        current = *came_from.keys(&current.clone()).unwrap();
+        path.push(current.clone());
+    }
+    return path;
 }
 
 pub fn gen_range(x: i32) -> i32 {
@@ -244,14 +253,44 @@ impl AStar {
     pub fn solve(&mut self) -> Option<Vec<Node>> {
         self.open.borrow_mut().push_front(self.current_node.clone());
         let mut came_from: HashMap<Node, Node> = HashMap::new();
+        let mut g_score: HashMap<Node, i32> = HashMap::new();
+        for x in 0..(self.board.borrow().len()) {
+            for y in 0..(self.board.borrow()[0].len()) {
+                g_score.insert(
+                    Node {
+                        x: x as i32,
+                        y: y as i32,
+                    },
+                    i32::MAX,
+                );
+            }
+        }
+        g_score.insert(self.start.clone(), 0);
+        let mut f_score: HashMap<Node, i32> = HashMap::new();
+        for x in 0..(self.board.borrow().len()) {
+            for y in 0..(self.board.borrow()[0].len()) {
+                f_score.insert(
+                    Node {
+                        x: x as i32,
+                        y: y as i32,
+                    },
+                    i32::MAX,
+                );
+            }
+        }
+        f_score.insert(
+            self.start.clone(),
+            self.start.clone().get_cost(self.end.clone()),
+        );
         let mut highlights = Vec::new();
 
-        while self.open.borrow().len() != 0 {
+        while !self.open.borrow().is_empty() {
             self.current_node = self.open.borrow_mut().pop_front().unwrap();
-            self.closed.borrow_mut().push(self.current_node.clone());
             highlights.push((self.current_node.x, self.current_node.y));
             if self.current_node == self.end {
                 println!("Found End");
+                self.solved_path
+                    .replace(reconstruct_path(came_from.clone(), self.end.clone()));
                 return None;
             }
 
@@ -264,19 +303,24 @@ impl AStar {
                 {
                     continue;
                 }
+                let tenative_g = *g_score.get(&self.current_node.clone()).unwrap() + 1;
+                let neighbour_g = *g_score.get(&neighbour.clone()).unwrap();
 
-                let ten = self.current_node.clone().get_cost(self.start.clone())
-                    + self.current_node.clone().get_cost(neighbour.clone());
-                let neigh = neighbour.clone().get_cost(self.start.clone());
-                println!("ten {} / neig {}", ten, neigh);
-                if ten < neigh {
+                if tenative_g < neighbour_g {
                     came_from.insert(neighbour.clone(), self.current_node.clone());
+                    g_score.insert(neighbour.clone(), tenative_g);
+                    f_score.insert(
+                        neighbour.clone(),
+                        tenative_g + neighbour.clone().get_cost(self.end.clone()),
+                    );
 
                     if !self.open.borrow().contains(neighbour) {
                         self.open.borrow_mut().push_front(neighbour.clone());
                     }
                 }
             }
+
+            // self.closed.borrow_mut().push(self.current_node.clone());
             draw_board(self.board.borrow().clone(), highlights.clone());
         }
 
