@@ -1,6 +1,6 @@
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::env;
 use std::ops::Add;
 use std::thread::sleep;
@@ -35,7 +35,7 @@ lazy_static! {
 
 /// random generation of blocked nodes
 pub fn gen_blockade() -> i32 {
-    if thread_rng().gen_ratio(1, 9) {
+    if thread_rng().gen_ratio(1, 3) {
         // 1 in 7 chance to get a blocked node
         *BLOCKED_NODE
     } else {
@@ -43,14 +43,14 @@ pub fn gen_blockade() -> i32 {
     }
 }
 
-pub fn reconstruct_path(came_from: HashMap<Node, Node>, mut current: Node) -> Vec<Node> {
-    let mut path: Vec<Node> = Vec::new();
-    while came_from.contains_key(&current) {
-        current = *came_from.keys(&current.clone()).unwrap();
-        path.push(current.clone());
-    }
-    return path;
-}
+// pub fn reconstruct_path(came_from: HashMap<Node, Node>, mut current: Node) -> Vec<Node> {
+// let mut path: Vec<Node> = Vec::new();
+// while came_from.contains_key(&current) {
+// current = *came_from.keys(&current.clone()).unwrap();
+// path.push(current.clone());
+// }
+// return path;
+// }
 
 pub fn gen_range(x: i32) -> i32 {
     thread_rng().gen_range(x..*MAX_BOARD_SIZE)
@@ -81,12 +81,12 @@ pub fn gen_board(height: i32, width: i32, start: (i32, i32), end: (i32, i32)) ->
 }
 
 /// draw the board in stdout
-pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<(i32, i32)>) {
-    // print!("     ");
-    // for y in 0..board[0].len() {
-    // print!("{} ", y);
-    // }
-    // println!();
+pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<Node>) {
+    print!("     ");
+    for y in 0..board[0].len() {
+        print!("{} ", y);
+    }
+    println!();
     for (i, x) in board.iter().enumerate() {
         if i < 10 {
             print!("{}  [ ", i);
@@ -96,8 +96,8 @@ pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<(i32, i32)>) {
         for (j, y) in x.clone().into_iter().enumerate() {
             // draw end in red
             let mut is_selected = false;
-            for (x1, y1) in &selected {
-                if i as i32 == *x1 && j as i32 == *y1 {
+            for node in &selected {
+                if i as i32 == node.x && j as i32 == node.y {
                     is_selected = true;
                 }
             }
@@ -283,19 +283,20 @@ impl AStar {
             self.start.clone().get_cost(self.end.clone()),
         );
         let mut highlights = Vec::new();
+        let board = self.board.clone().borrow().clone();
 
         while !self.open.borrow().is_empty() {
             self.current_node = self.open.borrow_mut().pop_front().unwrap();
-            highlights.push((self.current_node.x, self.current_node.y));
+            println!("c node: {:?}", self.current_node.clone());
+            highlights.push(self.current_node.clone());
             if self.current_node == self.end {
                 println!("Found End");
-                self.solved_path
-                    .replace(reconstruct_path(came_from.clone(), self.end.clone()));
+                // self.solved_path
+                // .replace(reconstruct_path(came_from.clone(), self.end.clone()));
                 return None;
             }
 
             self.gen_surrounding();
-            let board = self.board.clone().borrow().clone();
 
             for neighbour in self.neighbours_list.borrow().iter() {
                 if !neighbour.clone().is_traversible(board.clone())
@@ -318,10 +319,23 @@ impl AStar {
                         self.open.borrow_mut().push_front(neighbour.clone());
                     }
                 }
+
+                let mut vec = Vec::from(self.open.borrow().clone());
+                vec.sort_by(|a, b| {
+                    a.clone()
+                        .get_f_cost(self.start.clone(), self.end.clone())
+                        .cmp(&b.clone().get_f_cost(self.start.clone(), self.end.clone()))
+                });
+                self.open.replace(vec.into());
             }
 
-            // self.closed.borrow_mut().push(self.current_node.clone());
-            draw_board(self.board.borrow().clone(), highlights.clone());
+            self.closed.borrow_mut().push(self.current_node.clone());
+            print!("{esc}c", esc = 27 as char);
+            draw_board(
+                self.board.borrow().clone(),
+                highlights.clone(), //Vec::from(self.neighbours_list.borrow().clone()),
+            );
+            sleep(Duration::from_millis(500));
         }
 
         println!("No Path Found");
@@ -358,5 +372,6 @@ impl AStar {
                 .cmp(&b.clone().get_f_cost(self.start.clone(), self.end.clone()))
         });
         self.neighbours_list.replace(result.into());
+        println!("{:?}", self.neighbours_list.clone());
     }
 }
