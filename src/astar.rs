@@ -1,6 +1,6 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::ops::Add;
 use std::thread::sleep;
@@ -171,7 +171,7 @@ impl Default for AStar {
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Node {
     /// x,height, column
     pub x: i32,
@@ -179,17 +179,9 @@ pub struct Node {
     pub y: i32,
 }
 
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
-}
-
-impl Eq for Node {}
-
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
-    pub fn is_traversible(self, board: Vec<Vec<i32>>) -> bool {
+    pub fn is_traversible(&self, board: Vec<Vec<i32>>) -> bool {
         board[self.x as usize][self.y as usize] != 1
     }
     /// get the cost from the end node to node x
