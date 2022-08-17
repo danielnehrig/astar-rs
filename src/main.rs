@@ -1,3 +1,5 @@
+#![feature(once_cell)]
+
 mod astar;
 #[cfg(test)]
 mod test;

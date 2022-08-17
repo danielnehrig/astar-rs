@@ -1,45 +1,43 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::ops::Add;
+use std::sync::LazyLock;
+use std::thread::sleep;
+use std::time::Duration;
 
 use colored::Colorize;
-use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
-lazy_static! {
-    /// is debug enabled?
-    static ref IS_DEBUG: bool = env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true";
-    /// is test
-    static ref IS_TEST: bool = env::var("TEST").unwrap_or_else(|_| "false".to_string()) == *"true";
-    /// is ci
-    static ref IS_CI: bool = env::var("CI").unwrap_or_else(|_| "false".to_string()) == *"true";
-    /// the bondues for a diag node
-    static ref DIAG_BONUS: f32 = 1.4;
-    /// base g cost
-    static ref BASE_G_COST: i32 = 10;
-    /// indicator for start position
-    static ref START_INDICATOR: i32 = 8;
-    /// indicator for end position
-    static ref END_INDICATOR: i32 = 9;
-    /// the max board size
-    static ref MAX_BOARD_SIZE: i32 = 23;
-    /// the blocked node value
-    static ref BLOCKED_NODE: i32 = 1;
-    /// the free node value
-    static ref FREE_NODE: i32 = 0;
-}
+static DIAG_BONUS: LazyLock<f32> = LazyLock::new(|| 1.4);
+static MAX_BOARD_SIZE: LazyLock<i32> = LazyLock::new(|| 23);
+static START_INDICATOR: LazyLock<i32> = LazyLock::new(|| 8);
+static END_INDICATOR: LazyLock<i32> = LazyLock::new(|| 9);
+static BASE_G_COST: LazyLock<i32> = LazyLock::new(|| 10);
+static BLOCKED_NODE: LazyLock<i32> = LazyLock::new(|| 1);
+static FREE_NODE: LazyLock<i32> = LazyLock::new(|| 0);
+static IS_DEBUG: LazyLock<bool> =
+    LazyLock::new(|| env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true");
 
 /// random generation of blocked nodes
 pub fn gen_blockade() -> i32 {
-    if thread_rng().gen_ratio(1, 2) {
+    if thread_rng().gen_ratio(1, 3) {
         // 1 in 7 chance to get a blocked node
         *BLOCKED_NODE
     } else {
         *FREE_NODE
     }
 }
+
+// pub fn reconstruct_path(came_from: HashMap<Node, Node>, mut current: Node) -> Vec<Node> {
+// let mut path: Vec<Node> = Vec::new();
+// while came_from.contains_key(&current) {
+// current = *came_from.keys(&current.clone()).unwrap();
+// path.push(current.clone());
+// }
+// return path;
+// }
 
 pub fn gen_range(x: i32) -> i32 {
     thread_rng().gen_range(x..*MAX_BOARD_SIZE)
@@ -70,12 +68,12 @@ pub fn gen_board(height: i32, width: i32, start: (i32, i32), end: (i32, i32)) ->
 }
 
 /// draw the board in stdout
-pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<(i32, i32)>) {
-    // print!("     ");
-    // for y in 0..board[0].len() {
-    // print!("{} ", y);
-    // }
-    // println!();
+pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<Node>) {
+    print!("     ");
+    for y in 0..board[0].len() {
+        print!("{} ", y);
+    }
+    println!();
     for (i, x) in board.iter().enumerate() {
         if i < 10 {
             print!("{}  [ ", i);
@@ -85,8 +83,8 @@ pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<(i32, i32)>) {
         for (j, y) in x.clone().into_iter().enumerate() {
             // draw end in red
             let mut is_selected = false;
-            for (x1, y1) in &selected {
-                if i as i32 == *x1 && j as i32 == *y1 {
+            for node in &selected {
+                if i as i32 == node.x && j as i32 == node.y {
                     is_selected = true;
                 }
             }
@@ -122,7 +120,9 @@ pub struct AStar {
     /// the current neighbours
     pub neighbours_list: RefCell<VecDeque<Node>>,
     /// the nodes that are visited and checked
-    pub visited: RefCell<Vec<Node>>,
+    pub closed: RefCell<Vec<Node>>,
+    /// open nodes
+    pub open: RefCell<VecDeque<Node>>,
     /// current node
     pub current_node: Node,
 }
@@ -152,12 +152,13 @@ impl Default for AStar {
             },
             end: Node { x: end.0, y: end.1 },
             neighbours_list: RefCell::new(VecDeque::new()),
-            visited: RefCell::new(Vec::new()),
+            closed: RefCell::new(Vec::new()),
+            open: RefCell::new(VecDeque::new()),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Node {
     /// x,height, column
     pub x: i32,
@@ -165,14 +166,11 @@ pub struct Node {
     pub y: i32,
 }
 
-impl PartialEq for Node {
-    fn eq(&self, other: &Self) -> bool {
-        self.x == other.x && self.y == other.y
-    }
-}
-
 // A Node represented as a x and y coordinate in the planes of the game world
 impl Node {
+    pub fn is_traversible(&self, board: Vec<Vec<i32>>) -> bool {
+        board[self.x as usize][self.y as usize] != 1
+    }
     /// get the cost from the end node to node x
     /// get the g cost as well
     pub fn get_cost(self, node: Node) -> i32 {
@@ -225,76 +223,106 @@ impl AStar {
             start,
             end,
             neighbours_list: RefCell::new(VecDeque::new()),
-            visited: RefCell::new(Vec::new()),
+            closed: RefCell::new(Vec::new()),
+            open: RefCell::new(VecDeque::new()),
         }
     }
+
     /// solve the board
-    pub fn solve(&mut self) {
-        let board = self.board.clone().into_inner();
-        let height: i32 = board.len() as i32;
-        let width: i32 = board[0].clone().len() as i32;
-        let mut pos = get_rand_pos(height, width);
-        let mut highlights = Vec::new();
-        let mut end_reached = false;
-
-        while !end_reached {
-            print!("{esc}[2J{esc}[1;1H", esc = 27 as char); //clear screen
-            self.gen_surrounding();
-            self.visited.borrow_mut().push(self.current_node.clone());
-            let node = self
-                .neighbours_list
-                .borrow_mut()
-                .pop_front()
-                .expect("COULD NOT POP OUT VALUE NO VALUE IN ARRAY");
-            self.current_node = node.clone();
-            highlights.push((node.x, node.y));
-            // self.solved_path.borrow_mut().push(node);
-            if self.current_node == self.end {
-                end_reached = true;
-            }
-            if self.neighbours_list.borrow().len() == 0 {
-                println!("NO PATH FOUND");
-                end_reached = true;
-            }
-            if *IS_DEBUG {
-                // debug
-                //
-                while pos == (self.end.x, self.end.y) || pos == (self.start.x, self.start.y) {
-                    pos = get_rand_pos(height, width);
-                }
-
-                highlights.push((pos.0, pos.1));
-                let node = Node { x: pos.0, y: pos.1 };
-                let h_cost = node.clone().get_cost(self.end.clone());
-                let g_cost = node.clone().get_cost(self.start.clone());
-                let f_cost = node.get_f_cost(self.start.clone(), self.end.clone());
-                println!("selected node: h {}, g {}, f {}", h_cost, g_cost, f_cost);
-                println!("neighbours: {:?}", self.neighbours_list.borrow().clone());
-                println!("visited: {:?}", self.visited.borrow().clone());
-                println!(
-                    "{} {} {}",
-                    "selected".to_string().yellow(),
-                    "start".to_string().green(),
-                    "end".to_string().red()
+    pub fn solve(&mut self) -> Option<Vec<Node>> {
+        self.open.borrow_mut().push_front(self.current_node.clone());
+        let mut came_from: HashMap<Node, Node> = HashMap::new();
+        let mut g_score: HashMap<Node, i32> = HashMap::new();
+        for x in 0..(self.board.borrow().len()) {
+            for y in 0..(self.board.borrow()[0].len()) {
+                g_score.insert(
+                    Node {
+                        x: x as i32,
+                        y: y as i32,
+                    },
+                    i32::MAX,
                 );
             }
-
-            draw_board(board.clone(), highlights.clone());
-            // sleep(Duration::from_millis(500));
         }
-        println!(
-            "END FOUND FINAL PATH = {:?}",
-            self.solved_path.borrow().clone()
+        g_score.insert(self.start.clone(), 0);
+        let mut f_score: HashMap<Node, i32> = HashMap::new();
+        for x in 0..(self.board.borrow().len()) {
+            for y in 0..(self.board.borrow()[0].len()) {
+                f_score.insert(
+                    Node {
+                        x: x as i32,
+                        y: y as i32,
+                    },
+                    i32::MAX,
+                );
+            }
+        }
+        f_score.insert(
+            self.start.clone(),
+            self.start.clone().get_cost(self.end.clone()),
         );
-    }
+        let mut highlights = Vec::new();
+        let board = self.board.clone().borrow().clone();
 
-    /// generate a list of relative nodes from the selected/start node to be checked next
-    pub fn clear_neigbours(&mut self) {
-        self.neighbours_list.borrow_mut().clear();
+        while !self.open.borrow().is_empty() {
+            self.current_node = self.open.borrow_mut().pop_front().unwrap();
+            println!("c node: {:?}", self.current_node.clone());
+            highlights.push(self.current_node.clone());
+            if self.current_node == self.end {
+                println!("Found End");
+                // self.solved_path
+                // .replace(reconstruct_path(came_from.clone(), self.end.clone()));
+                return None;
+            }
+
+            self.gen_surrounding();
+
+            for neighbour in self.neighbours_list.borrow().iter() {
+                if !neighbour.clone().is_traversible(board.clone())
+                    || self.closed.borrow().contains(neighbour)
+                {
+                    continue;
+                }
+                let tenative_g = *g_score.get(&self.current_node.clone()).unwrap() + 1;
+                let neighbour_g = *g_score.get(&neighbour.clone()).unwrap();
+
+                if tenative_g < neighbour_g {
+                    came_from.insert(neighbour.clone(), self.current_node.clone());
+                    g_score.insert(neighbour.clone(), tenative_g);
+                    f_score.insert(
+                        neighbour.clone(),
+                        tenative_g + neighbour.clone().get_cost(self.end.clone()),
+                    );
+
+                    if !self.open.borrow().contains(neighbour) {
+                        self.open.borrow_mut().push_front(neighbour.clone());
+                    }
+                }
+
+                let mut vec = Vec::from(self.open.borrow().clone());
+                vec.sort_by(|a, b| {
+                    a.clone()
+                        .get_f_cost(self.start.clone(), self.end.clone())
+                        .cmp(&b.clone().get_f_cost(self.start.clone(), self.end.clone()))
+                });
+                self.open.replace(vec.into());
+            }
+
+            self.closed.borrow_mut().push(self.current_node.clone());
+            print!("{esc}c", esc = 27 as char);
+            draw_board(
+                self.board.borrow().clone(),
+                highlights.clone(), //Vec::from(self.neighbours_list.borrow().clone()),
+            );
+            sleep(Duration::from_millis(500));
+        }
+
+        println!("No Path Found");
+        None
     }
 
     pub fn gen_surrounding(&mut self) {
-        let mut result = Vec::from(self.neighbours_list.borrow().clone());
+        let mut result = Vec::new();
         for x in -1_i32..2_i32 {
             for y in -1_i32..2_i32 {
                 let start = self.current_node.borrow();
@@ -303,28 +331,15 @@ impl AStar {
                 let r_x = start.x + x; // relative position from start/current node
                 let r_y = start.y + y;
                 // cases:
-                // don't add start node
                 // don't add nodes out of bounds
-                // don't add nodes that are blocked
                 if !(r_x == start.x && r_y == start.y)
                     && ((r_x >= 0 && r_x <= board_x) && (r_y >= 0 && r_y <= board_y))
                 {
-                    let current_node = self.board.borrow()[r_x as usize][r_y as usize];
-                    if current_node != 1 {
-                        let node = Node {
-                            x: start.x + x as i32,
-                            y: start.y + y as i32,
-                        };
-                        if !self
-                            .visited
-                            .borrow()
-                            .iter()
-                            .any(|n| n.x == node.x && n.y == node.y)
-                            && !result.iter().any(|n| n.x == node.x && n.y == node.y)
-                        {
-                            result.push(node);
-                        }
-                    }
+                    let node = Node {
+                        x: start.x + x as i32,
+                        y: start.y + y as i32,
+                    };
+                    result.push(node);
                 }
             }
         }
@@ -336,5 +351,6 @@ impl AStar {
                 .cmp(&b.clone().get_f_cost(self.start.clone(), self.end.clone()))
         });
         self.neighbours_list.replace(result.into());
+        println!("{:?}", self.neighbours_list.clone());
     }
 }

@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 rand = "0.8"
-lazy_static = "1.4"
 colored = "2"
+device_query = "1"
