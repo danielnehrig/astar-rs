@@ -3,35 +3,22 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::ops::Add;
+use std::sync::LazyLock;
 use std::thread::sleep;
 use std::time::Duration;
 
 use colored::Colorize;
-use lazy_static::lazy_static;
 use rand::{thread_rng, Rng};
 
-lazy_static! {
-    /// is debug enabled?
-    static ref IS_DEBUG: bool = env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true";
-    /// is test
-    static ref IS_TEST: bool = env::var("TEST").unwrap_or_else(|_| "false".to_string()) == *"true";
-    /// is ci
-    static ref IS_CI: bool = env::var("CI").unwrap_or_else(|_| "false".to_string()) == *"true";
-    /// the bondues for a diag node
-    static ref DIAG_BONUS: f32 = 1.4;
-    /// base g cost
-    static ref BASE_G_COST: i32 = 10;
-    /// indicator for start position
-    static ref START_INDICATOR: i32 = 8;
-    /// indicator for end position
-    static ref END_INDICATOR: i32 = 9;
-    /// the max board size
-    static ref MAX_BOARD_SIZE: i32 = 23;
-    /// the blocked node value
-    static ref BLOCKED_NODE: i32 = 1;
-    /// the free node value
-    static ref FREE_NODE: i32 = 0;
-}
+static DIAG_BONUS: LazyLock<f32> = LazyLock::new(|| 1.4);
+static MAX_BOARD_SIZE: LazyLock<i32> = LazyLock::new(|| 23);
+static START_INDICATOR: LazyLock<i32> = LazyLock::new(|| 8);
+static END_INDICATOR: LazyLock<i32> = LazyLock::new(|| 9);
+static BASE_G_COST: LazyLock<i32> = LazyLock::new(|| 10);
+static BLOCKED_NODE: LazyLock<i32> = LazyLock::new(|| 1);
+static FREE_NODE: LazyLock<i32> = LazyLock::new(|| 0);
+static IS_DEBUG: LazyLock<bool> =
+    LazyLock::new(|| env::var("DEBUG").unwrap_or_else(|_| "false".to_string()) == *"true");
 
 /// random generation of blocked nodes
 pub fn gen_blockade() -> i32 {

@@ -1,7 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
-
     use crate::astar::Node;
     use crate::astar::*;
 
