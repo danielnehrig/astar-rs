@@ -158,7 +158,7 @@ impl Default for AStar {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Node {
     /// x,height, column
     pub x: i32,
@@ -323,8 +323,8 @@ impl AStar {
 
     pub fn gen_surrounding(&mut self) {
         let mut result = Vec::new();
-        for x in -1_i32..2_i32 {
-            for y in -1_i32..2_i32 {
+        for x in -1_i32..=1_i32 {
+            for y in -1_i32..=1_i32 {
                 let start = self.current_node.borrow();
                 let board_x = self.board.borrow().len() as i32 - 1;
                 let board_y = self.board.borrow()[0].len() as i32 - 1;
