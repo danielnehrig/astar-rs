@@ -71,14 +71,14 @@ pub fn gen_board(height: i32, width: i32, start: (i32, i32), end: (i32, i32)) ->
 pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<Node>) {
     print!("     ");
     for y in 0..board[0].len() {
-        print!("{} ", y);
+        print!("{y} ");
     }
     println!();
     for (i, x) in board.iter().enumerate() {
         if i < 10 {
-            print!("{}  [ ", i);
+            print!("{i}  [ ");
         } else {
-            print!("{} [ ", i);
+            print!("{i} [ ");
         }
         for (j, y) in x.clone().into_iter().enumerate() {
             // draw end in red
@@ -89,17 +89,17 @@ pub fn draw_board(board: Vec<Vec<i32>>, selected: Vec<Node>) {
                 }
             }
             if y == 9 {
-                print!("{} ", format!("{}", y).bold().red());
+                print!("{} ", format!("{y}").bold().red());
             // draw start in green
             } else if y == 8 {
-                print!("{} ", format!("{}", y).bold().green());
+                print!("{} ", format!("{y}").bold().green());
             // debug output yellow :)
             } else if is_selected {
-                print!("{} ", format!("{}", y).bold().yellow());
+                print!("{} ", format!("{y}").bold().yellow());
             } else if y == 1 {
-                print!("{} ", format!("{}", y).bold().blue());
+                print!("{} ", format!("{y}").bold().blue());
             } else {
-                print!("{} ", y);
+                print!("{y} ");
             }
         }
         print!("]");
@@ -134,10 +134,8 @@ impl Default for AStar {
         let start = get_rand_pos(height, width); // start position tuple
         let end = get_rand_pos(height, width); // end position tuple
         if *IS_DEBUG {
-            println!(
-                "height: {} width: {} start: {:?} end: {:?}",
-                height, width, start, end
-            ); // random gen numbers for debug
+            println!("height: {height} width: {width} start: {start:?} end: {end:?}");
+            // random gen numbers for debug
         }
         Self {
             board: RefCell::new(gen_board(height, width, start, end)),
@@ -211,10 +209,8 @@ impl AStar {
         let height = gen_range(3); // board height
         let width = gen_range(5); // board width
         if *IS_DEBUG {
-            println!(
-                "height: {} width: {} start: {:?} end: {:?}",
-                height, width, start, end
-            ); // random gen numbers for debug
+            println!("height: {height} width: {width} start: {start:?} end: {end:?}");
+            // random gen numbers for debug
         }
         Self {
             board: RefCell::new(board),
@@ -336,8 +332,8 @@ impl AStar {
                     && ((r_x >= 0 && r_x <= board_x) && (r_y >= 0 && r_y <= board_y))
                 {
                     let node = Node {
-                        x: start.x + x as i32,
-                        y: start.y + y as i32,
+                        x: start.x + x,
+                        y: start.y + y,
                     };
                     result.push(node);
                 }
